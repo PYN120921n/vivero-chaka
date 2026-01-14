@@ -34,7 +34,8 @@ class QuotationManager {
       phone: "99-97-48-26-11",
       email: "administracion@mexicoprimero.mx",
       fullAddress: "CALLE 39 No 92 Entre 22 y 24 C.P 97960 Tzucacab, Yucatán",
-      logoPath: "logo.png"
+      logoPath: "logo.png",
+      esrLogoPath: "logo2.png"  // Cambiado a logo2.png
     };
 
     // Firmas
@@ -58,7 +59,7 @@ class QuotationManager {
             <p class="subtitle">Genera cotizaciones profesionales en minutos</p>
           </div>
           <div class="header-badges">
-            <span class="badge info" id="quoteCounterBadge">COT #${this.quoteCounter}</span>
+            <span class="badge info" id="quoteCounterBadge">COT ${this.formatQuoteNumber(this.quoteCounter)}</span>
             <span class="badge secondary" id="productCountBadge">0 productos</span>
           </div>
         </div>
@@ -133,8 +134,8 @@ class QuotationManager {
                 </div>
               </div>
               
-              <div class="products-grid" id="availableProductsGrid">
-                <!-- Los productos se cargarán aquí -->
+              <div class="products-container" id="availableProductsContainer">
+                <!-- Los productos se cargarán aquí en tabla -->
               </div>
             </div>
 
@@ -543,48 +544,81 @@ class QuotationManager {
           color: #4caf50;
         }
         
-        /* GRID DE PRODUCTOS */
-        .products-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-          gap: 15px;
-          max-height: 300px;
+        /* TABLA DE PRODUCTOS (REEMPLAZA A LAS TARJETAS) */
+        .products-container {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .products-table-container {
+          flex: 1;
           overflow-y: auto;
-          padding: 5px;
+          border: 1px solid #e0e0e0;
+          border-radius: 8px;
           margin-bottom: 20px;
         }
         
-        .product-card {
-          background: white;
-          border: 2px solid #e8f5e9;
-          border-radius: 10px;
-          padding: 15px;
-          transition: all 0.3s ease;
-          cursor: pointer;
+        .products-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
         }
         
-        .product-card:hover {
-          border-color: #4caf50;
-          transform: translateY(-2px);
-          box-shadow: 0 5px 15px rgba(76, 175, 80, 0.1);
+        .products-table thead {
+          position: sticky;
+          top: 0;
+          z-index: 10;
         }
         
-        .product-card h5 {
-          margin: 0 0 8px 0;
-          color: #1b5e20;
-          font-size: 14px;
-        }
-        
-        .product-card .price {
-          font-weight: bold;
-          color: #2e7d32;
-          font-size: 15px;
-        }
-        
-        .product-card .stock {
+        .products-table th {
+          background: #2e7d32;
+          color: white;
+          padding: 12px 10px;
+          text-align: left;
+          font-weight: 600;
           font-size: 12px;
-          color: #666;
-          margin-top: 5px;
+          border-right: 1px solid #1b5e20;
+        }
+        
+        .products-table th:last-child {
+          border-right: none;
+        }
+        
+        .products-table td {
+          padding: 10px 8px;
+          border-bottom: 1px solid #e0e0e0;
+          color: #333;
+        }
+        
+        .products-table tr:hover {
+          background-color: #f1f8e9;
+        }
+        
+        .products-table tr.selected-product {
+          background-color: #e8f5e9;
+          border-left: 3px solid #4caf50;
+        }
+        
+        .add-product-table-btn {
+          padding: 6px 12px;
+          background: #4caf50;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: background 0.2s;
+        }
+        
+        .add-product-table-btn:hover {
+          background: #388e3c;
+        }
+        
+        .add-product-table-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
         }
         
         /* PRODUCTOS SELECCIONADOS */
@@ -841,8 +875,8 @@ class QuotationManager {
             grid-template-columns: 1fr;
           }
           
-          .products-grid {
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          .products-table {
+            font-size: 12px;
           }
         }
         
@@ -857,6 +891,12 @@ class QuotationManager {
           
           .btn-secondary {
             grid-column: span 1;
+          }
+          
+          .products-table th,
+          .products-table td {
+            padding: 8px 4px;
+            font-size: 11px;
           }
         }
       </style>
@@ -926,7 +966,7 @@ class QuotationManager {
     });
   }
 
-  // Métodos de carga de productos
+  // Métodos de carga de productos - AHORA EN TABLA
   loadAvailableProducts() {
     let products = [];
     switch(this.currentProductType) {
@@ -941,11 +981,11 @@ class QuotationManager {
         break;
     }
 
-    const grid = document.getElementById('availableProductsGrid');
-    if (!grid) return;
+    const container = document.getElementById('availableProductsContainer');
+    if (!container) return;
 
     if (products.length === 0) {
-      grid.innerHTML = `
+      container.innerHTML = `
         <div class="no-products">
           <i class="fas fa-inbox"></i>
           <p>No hay productos disponibles</p>
@@ -959,26 +999,65 @@ class QuotationManager {
     // Filtrar solo productos con stock
     const availableProducts = products.filter(p => (p.stock || 0) > 0);
 
-    grid.innerHTML = availableProducts.map(product => `
-      <div class="product-card" data-id="${product.id}">
-        <h5>${product.commonName || product.name || 'Sin nombre'}</h5>
-        <small><em>${product.scientificName || ''}</em></small>
-        <div class="price">$${(product.unitPrice || 0).toFixed(2)}/kg</div>
-        <div class="stock">Stock: ${(product.stock || 0).toFixed(2)} kg</div>
-        <button class="btn-sm add-product-btn" data-id="${product.id}" style="margin-top: 10px; width: 100%;">
-          <i class="fas fa-plus"></i> Agregar
-        </button>
+    container.innerHTML = `
+      <div class="products-table-container">
+        <table class="products-table">
+          <thead>
+            <tr>
+              <th>Nombre Común</th>
+              <th>Nombre Científico</th>
+              <th>Precio/kg</th>
+              <th>Stock (kg)</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${availableProducts.map(product => `
+              <tr class="product-row" data-id="${product.id}">
+                <td><strong>${product.commonName || product.name || 'Sin nombre'}</strong></td>
+                <td><em>${product.scientificName || ''}</em></td>
+                <td>$${(product.unitPrice || 0).toFixed(2)}</td>
+                <td>${(product.stock || 0).toFixed(2)}</td>
+                <td>
+                  <button class="add-product-table-btn" data-id="${product.id}">
+                    <i class="fas fa-plus"></i> Agregar
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
       </div>
-    `).join('');
+    `;
 
     document.getElementById('availableProductsCount').textContent =
       `${availableProducts.length} productos disponibles`;
 
-    // Agregar eventos a los botones
-    grid.querySelectorAll('.add-product-btn').forEach(btn => {
+    // Agregar eventos a los botones de la tabla
+    container.querySelectorAll('.add-product-table-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const productId = e.target.closest('.add-product-btn').getAttribute('data-id');
+        e.stopPropagation();
+        const productId = e.target.closest('.add-product-table-btn').getAttribute('data-id');
         this.addProductToQuote(productId);
+
+        // Efecto visual
+        const row = e.target.closest('.product-row');
+        row.classList.add('selected-product');
+        setTimeout(() => row.classList.remove('selected-product'), 1000);
+      });
+    });
+
+    // Hacer las filas clickeables también
+    container.querySelectorAll('.product-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (!e.target.closest('.add-product-table-btn')) {
+          const productId = row.getAttribute('data-id');
+          this.addProductToQuote(productId);
+
+          // Efecto visual
+          row.classList.add('selected-product');
+          setTimeout(() => row.classList.remove('selected-product'), 1000);
+        }
       });
     });
   }
@@ -1244,6 +1323,12 @@ class QuotationManager {
     } catch { return ''; }
   }
 
+  formatQuoteNumber(number) {
+    const paddedNumber = number.toString().padStart(3, '0');
+    const currentYear = new Date().getFullYear();
+    return `${paddedNumber}/${currentYear}`;
+  }
+
   updateQuoteDate() {
     const today = new Date();
     const formattedDate = today.toISOString().split('T')[0];
@@ -1377,9 +1462,10 @@ class QuotationManager {
     const quoteDate = document.getElementById('quoteDate').value;
     const quoteType = document.getElementById('quoteType').value;
     const totals = this.calculateTotals();
+    const quoteNumber = this.formatQuoteNumber(this.quoteCounter);
 
     const quoteData = {
-      id: `MP-${this.quoteCounter}`,
+      id: quoteNumber,
       clientName,
       clientAddress,
       date: quoteDate,
@@ -1452,9 +1538,10 @@ class QuotationManager {
     const quoteDate = document.getElementById('quoteDate').value;
     const quoteType = document.getElementById('quoteType').value;
     const totals = this.calculateTotals();
+    const quoteNumber = this.formatQuoteNumber(this.quoteCounter);
 
     return {
-      id: `MP-${this.quoteCounter}`,
+      id: quoteNumber,
       clientName,
       clientAddress,
       date: quoteDate,
@@ -1497,11 +1584,13 @@ class QuotationManager {
   }
 
   searchProducts(searchTerm) {
-    const grid = document.getElementById('availableProductsGrid');
-    const cards = grid.querySelectorAll('.product-card');
-    cards.forEach(card => {
-      const text = card.textContent.toLowerCase();
-      card.style.display = text.includes(searchTerm.toLowerCase()) ? 'block' : 'none';
+    const table = document.querySelector('.products-table tbody');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(searchTerm.toLowerCase()) ? '' : 'none';
     });
   }
 
@@ -1510,7 +1599,7 @@ class QuotationManager {
     let maxNumber = 0;
     this.quotations.forEach(quote => {
       if (quote.id) {
-        const match = quote.id.match(/MP-(\d+)/);
+        const match = quote.id.match(/^(\d{3})\/\d{4}$/);
         if (match) maxNumber = Math.max(maxNumber, parseInt(match[1]));
       }
     });
@@ -1519,7 +1608,7 @@ class QuotationManager {
 
   updateQuoteCounterBadge() {
     const badge = document.getElementById('quoteCounterBadge');
-    if (badge) badge.textContent = `COT #${this.quoteCounter}`;
+    if (badge) badge.textContent = `COT ${this.formatQuoteNumber(this.quoteCounter)}`;
   }
 
   calculateValidUntil(dateString, days) {
@@ -1571,13 +1660,12 @@ class QuotationManager {
 
     return `
       <div class="print-container">
+        <!-- ENCABEZADO CENTRADO CON LOGO A LA IZQUIERDA -->
         <div class="print-header">
-          <div class="print-logo-section">
-            <div class="print-logo-placeholder">
-              <img src="${this.companyInfo.logoPath}" alt="Logo ${this.companyInfo.name}" style="max-width: 120px; max-height: 120px;" onerror="this.onerror=null; this.src='logo.jpg'; this.alt='Logo ${this.companyInfo.name}'">
-            </div>
+          <div class="print-logo-container">
+            <img src="${this.companyInfo.logoPath}" alt="Logo México Primero" class="print-logo" onerror="this.style.display='none'">
           </div>
-          <div class="print-company-info">
+          <div class="print-company-info" style="text-align: center;">
             <div class="print-company-name">${this.companyInfo.name}</div>
             <div class="print-company-line">${this.companyInfo.activities}</div>
             <div class="print-company-line">${this.companyInfo.address}</div>
@@ -1588,12 +1676,13 @@ class QuotationManager {
 
         <div class="print-quote-info">
           <div class="print-quote-header-row">
-            <div class="print-folio-section">COTIZACIÓN No. ${quoteData.id}</div>
             <div class="print-quote-title-section">COTIZACIÓN DE ${typeText[quoteData.type] || 'PRODUCTOS'}</div>
           </div>
           
           <div class="print-quote-details-row">
-            <div class="print-left-space"></div>
+            <div class="print-folio-section" style="color: #ff0000; font-size: 14px; font-weight: bold;">
+              COTIZACIÓN No. ${quoteData.id}
+            </div>
             <div class="print-date-section">
               Mérida, Yucatán, a <span class="print-dynamic-field">${this.formatDate(quoteData.date)}</span>
             </div>
@@ -1672,14 +1761,21 @@ class QuotationManager {
           </div>
         </div>
 
+        <!-- PIE DE PÁGINA CON LOGO ESR A LA DERECHA -->
         <div class="print-footer">
           <div class="footer-contact">
             ${this.companyInfo.fullAddress}<br>
             Whatsapp: ${this.companyInfo.phone} / email: ${this.companyInfo.email}
           </div>
           <div class="footer-copyright">
-            © ${new Date().getFullYear()} ${this.companyInfo.name} - Sistema de Gestión Integral v2.0<br>
-            Esta es una cotización generada electrónicamente
+            <div style="float: left; width: 70%;">
+              © ${new Date().getFullYear()} ${this.companyInfo.name} - Sistema de Gestión Integral v2.0<br>
+              Esta es una cotización generada electrónicamente
+            </div>
+            <div style="float: right; width: 30%; text-align: right;">
+              <img src="${this.companyInfo.esrLogoPath}" alt="Logo ESR" style="max-width: 120px; max-height: 100px; display: block; margin-left: auto;" onerror="this.style.display='none'">
+            </div>
+            <div style="clear: both;"></div>
           </div>
         </div>
       </div>
@@ -1707,49 +1803,241 @@ class QuotationManager {
       
       .print-container { max-width: 1000px; margin: 0 auto; padding: 20px; }
       
-      .print-header { display: flex; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #2e7d32; }
-      .print-logo-section { width: 120px; height: 120px; margin-right: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-      .print-logo-section img { max-width: 100%; max-height: 100%; object-fit: contain; }
-      .print-company-info { flex-grow: 1; text-align: left; }
-      .print-company-name { font-size: 16px; font-weight: bold; text-decoration: underline; color: #2e7d32; margin-bottom: 6px; text-transform: uppercase; }
-      .print-company-line { font-size: 11px; margin-bottom: 3px; color: #333; }
+      /* ENCABEZADO CON LOGO - CENTRADO */
+      .print-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #2e7d32;
+        position: relative;
+      }
       
-      .print-quote-info { margin-bottom: 25px; border-bottom: 1px solid #ccc; padding-bottom: 15px; }
-      .print-quote-header-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-      .print-folio-section { font-weight: bold; font-size: 13px; color: #2e7d32; }
-      .print-quote-title-section { flex-grow: 1; text-align: center; font-weight: bold; font-size: 13px; color: #2e7d32; }
-      .print-quote-details-row { display: flex; justify-content: space-between; margin-top: 8px; }
-      .print-left-space { flex: 1; }
-      .print-date-section { text-align: center; flex: 2; }
-      .print-cot-section { text-align: right; font-weight: bold; flex: 1; }
-      .print-client-info { font-size: 11px; margin-top: 15px; margin-bottom: 10px; padding: 10px; background: #f1f8e9; border-radius: 5px; }
-      .print-intro-text { font-style: italic; margin-bottom: 20px; text-align: justify; }
-      .print-dynamic-field { font-weight: bold; }
+      .print-logo-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
       
-      .print-products-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 10px; }
-      .print-products-table th { background-color: #2e7d32; color: white; padding: 8px 5px; text-align: center; border: 1px solid #ddd; font-weight: bold; }
-      .print-products-table td { padding: 8px 5px; border: 1px solid #ddd; text-align: center; }
-      .print-products-table tr:nth-child(even) { background-color: #f9f9f9; }
+      .print-logo {
+        max-width: 120px;
+        max-height: 120px;
+        object-fit: contain;
+      }
       
-      .print-summary { margin: 20px 0; padding: 15px; background: #f1f8e9; border-radius: 8px; max-width: 300px; margin-left: auto; }
-      .print-summary-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6; }
-      .print-summary-total { font-weight: bold; font-size: 14px; color: #2e7d32; border-top: 2px solid #2e7d32; margin-top: 10px; padding-top: 10px; }
+      .print-company-info {
+        flex: 1;
+        text-align: center;
+      }
       
-      .print-conditions { margin-bottom: 30px; }
-      .print-conditions-title { font-size: 12px; font-weight: bold; margin-bottom: 10px; color: #2e7d32; text-align: center; }
-      .print-condition-item { margin-bottom: 5px; display: flex; }
-      .print-condition-number { font-weight: bold; margin-right: 10px; min-width: 20px; }
+      .print-company-name {
+        font-size: 16px;
+        font-weight: bold;
+        text-decoration: underline;
+        color: #2e7d32;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
       
-      .print-signatures { margin-top: 50px; margin-bottom: 40px; display: flex; justify-content: center; }
-      .signature-section { text-align: center; width: 45%; }
-      .print-signature-line { width: 100%; border-top: 1px solid #333; margin: 30px auto 10px; }
-      .print-signature-name { font-weight: bold; margin-top: 5px; font-size: 11px; }
-      .signature-details { font-size: 10px; color: #555; margin-top: 5px; }
-      .signature-line { margin-bottom: 2px; }
+      .print-company-line {
+        font-size: 11px;
+        margin-bottom: 3px;
+        color: #333;
+      }
       
-      .print-footer { text-align: center; font-size: 10px; color: #555; border-top: 1px solid #ccc; padding-top: 15px; margin-top: 40px; }
-      .footer-contact { margin-bottom: 10px; }
-      .footer-copyright { color: #777; }
+      .print-quote-info {
+        margin-bottom: 25px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 15px;
+      }
+      
+      .print-quote-header-row {
+        text-align: center;
+        margin-bottom: 8px;
+      }
+      
+      .print-quote-title-section {
+        font-weight: bold;
+        font-size: 14px;
+        color: #2e7d32;
+        text-transform: uppercase;
+      }
+      
+      .print-quote-details-row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 15px;
+        font-size: 11px;
+      }
+      
+      .print-folio-section {
+        font-weight: bold;
+        color: #ff0000;
+        font-size: 14px;
+      }
+      
+      .print-date-section {
+        text-align: center;
+      }
+      
+      .print-cot-section {
+        text-align: right;
+        font-weight: bold;
+      }
+      
+      .print-client-info {
+        font-size: 11px;
+        margin-top: 15px;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: #f1f8e9;
+        border-radius: 5px;
+      }
+      
+      .print-intro-text {
+        font-style: italic;
+        margin-bottom: 20px;
+        text-align: justify;
+      }
+      
+      .print-dynamic-field {
+        font-weight: bold;
+      }
+      
+      /* TABLA DE PRODUCTOS */
+      .print-products-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 25px;
+        font-size: 10px;
+      }
+      
+      .print-products-table th {
+        background-color: #2e7d32;
+        color: white;
+        padding: 8px 5px;
+        text-align: center;
+        border: 1px solid #ddd;
+        font-weight: bold;
+      }
+      
+      .print-products-table td {
+        padding: 8px 5px;
+        border: 1px solid #ddd;
+        text-align: center;
+      }
+      
+      .print-products-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      
+      /* RESUMEN */
+      .print-summary {
+        margin: 20px 0;
+        padding: 15px;
+        background: #f1f8e9;
+        border-radius: 8px;
+        max-width: 300px;
+        margin-left: auto;
+      }
+      
+      .print-summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+      }
+      
+      .print-summary-total {
+        font-weight: bold;
+        font-size: 14px;
+        color: #2e7d32;
+        border-top: 2px solid #2e7d32;
+        margin-top: 10px;
+        padding-top: 10px;
+      }
+      
+      /* CONDICIONES */
+      .print-conditions {
+        margin-bottom: 30px;
+      }
+      
+      .print-conditions-title {
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #2e7d32;
+        text-align: center;
+      }
+      
+      .print-condition-item {
+        margin-bottom: 5px;
+        display: flex;
+      }
+      
+      .print-condition-number {
+        font-weight: bold;
+        margin-right: 10px;
+        min-width: 20px;
+      }
+      
+      /* FIRMAS */
+      .print-signatures {
+        margin-top: 50px;
+        margin-bottom: 40px;
+        display: flex;
+        justify-content: center;
+      }
+      
+      .signature-section {
+        text-align: center;
+        width: 45%;
+      }
+      
+      .print-signature-line {
+        width: 100%;
+        border-top: 1px solid #333;
+        margin: 30px auto 10px;
+      }
+      
+      .print-signature-name {
+        font-weight: bold;
+        margin-top: 5px;
+        font-size: 11px;
+      }
+      
+      .signature-details {
+        font-size: 10px;
+        color: #555;
+        margin-top: 5px;
+      }
+      
+      .signature-line {
+        margin-bottom: 2px;
+      }
+      
+      /* PIE DE PÁGINA */
+      .print-footer {
+        text-align: center;
+        font-size: 10px;
+        color: #555;
+        border-top: 1px solid #ccc;
+        padding-top: 15px;
+        margin-top: 40px;
+      }
+      
+      .footer-contact {
+        margin-bottom: 10px;
+      }
+      
+      .footer-copyright {
+        color: #777;
+        overflow: hidden;
+        margin-top: 15px;
+        position: relative;
+        min-height: 100px;
+      }
       
       @media print {
         body { padding: 0; }
